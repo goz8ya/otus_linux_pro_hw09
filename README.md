@@ -95,3 +95,105 @@ ll /home/vagrant/custom-nginx
 ````
 apt-mark hold ngnix
 ````
+
+Далее мы будем использовать его для доступа к своему репозиторию
+
+
+#### ЗАДАНИЕ 2. Создать свой репозиторий и разместить там ранее собранный RPM
+
+ Создаем каталог репозитория в дефолтном каталоге статики nginx:
+```
+ mkdir /var/www/html/repo
+```
+Копируем в него наши пакеты:
+```
+cp *.deb /var/www/html/repo
+```
+ Настраиваем nginx для листинга каталога резитория. Добавляем в файл `nano /etc/nginx/sites-enabled/default` в секцию `location /` директиву `autoindex on`
+
+Проверяем синтаксис и перезапускаем nginx:
+```
+# nginx -t
+# systemctl restart nginx
+```
+Проверяем что репозиторий доступен:
+```
+curl -a http://localhost/repo/
+```
+
+Качаем тестовый пакет и сканируем репозитарий на наличие пакетов 
+````
+wget https://downloads.percona.com/downloads/pmm2/2.41.2/binary/debian/jammy/x86_64/pmm2-client_2.41.2-6.jammy_amd64.deb
+dpkg-scanpackages -m . > Packages
+dpkg-scanpackages -m . | gzip > Packages.gz
+````
+Добавляем репозиторий в систему:
+
+````
+vi /etc/apt/sources.list
+````
+````
+##################
+deb [trusted=yes] http://localhost/repo/ /
+##################
+````
+Тестируем установку с нашего репозитория. 
+```
+apt install pmm2-client
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following NEW packages will be installed:
+  pmm2-client
+0 upgraded, 1 newly installed, 0 to remove and 2 not upgraded.
+Need to get 85.9 MB of archives.
+After this operation, 197 MB of additional disk space will be used.
+Get:1 http://localhost/repo  pmm2-client 2.41.2-6.jammy [85.9 MB]
+Fetched 85.9 MB in 0s (330 MB/s)
+Selecting previously unselected package pmm2-client.
+(Reading database ... 125138 files and directories currently installed.)
+Preparing to unpack .../pmm2-client_2.41.2-6.jammy_amd64.deb ...
+Adding system user `pmm-agent' (UID 114) ...
+Adding new group `pmm-agent' (GID 121) ...
+Adding new user `pmm-agent' (UID 114) with group `pmm-agent' ...
+Creating home directory `/usr/local/percona' ...
+Unpacking pmm2-client (2.41.2-6.jammy) ...
+Setting up pmm2-client (2.41.2-6.jammy) ...
+Created symlink /etc/systemd/system/multi-user.target.wants/pmm-agent.service → /lib/systemd/system/pmm-agent.service.
+Scanning processes...
+Scanning candidates...
+Scanning linux images...
+
+Restarting services...
+Service restarts being deferred:
+Service restarts being deferred:
+ /etc/needrestart/restart.d/dbus.service
+ systemctl restart getty@tty1.service
+ systemctl restart networkd-dispatcher.service
+ systemctl restart systemd-logind.service
+ systemctl restart user@1000.service
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+```
+Пакет установлен с нашего репозитория
+```
+ dpkg-query -l | grep pmm2-client
+ii  pmm2-client                            2.41.2-6.jammy                          amd64        Percona Monitoring and Management Client
+```
+
+
+> [!NOTE]
+> В случае, если потребуется обновить репозиторий (а это делается при каждом добавлении файлов) снова, нужно выполнить команду `dpkg-scanpackages -m . > Packages`
+
+
+
+
+
+
+
+
+
